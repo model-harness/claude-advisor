@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>claude-advisor — A Bedrock-native advisor for Claude Code</title>
+<meta name="description" content="claude-advisor brings Claude Code's advisor tool to sessions running on Amazon Bedrock.">
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-alt: #f6f7f8;
+    --text: #1b1f23;
+    --text-dim: #52585f;
+    --border: #d9dce0;
+    --accent: #8a3ffc;
+    --accent-dim: #6c2bd9;
+    --code-bg: #0f1115;
+    --code-text: #e6e6e6;
+    --good: #1a7f37;
+    --focus: #005fcc;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #10131a;
+      --bg-alt: #171b24;
+      --text: #e8eaed;
+      --text-dim: #a2a9b3;
+      --border: #2b313c;
+      --accent: #b48bff;
+      --accent-dim: #d2b8ff;
+      --code-bg: #05070a;
+      --code-text: #dfe3e8;
+      --good: #3fb950;
+      --focus: #6cb6ff;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.55;
+  }
+  main { max-width: 860px; margin: 0 auto; padding: 0 1.5rem 4rem; }
+  code, pre, .mono { font-family: "SF Mono", Consolas, "Liberation Mono", Menlo, monospace; }
+  a { color: var(--accent-dim); }
+  a:hover { color: var(--accent); }
+  :focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+  }
+  h1, h2, h3 { line-height: 1.2; }
+  h2 { border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; margin-top: 3rem; }
+
+  header.hero {
+    padding: 3.5rem 1.5rem 2.5rem;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+  header.hero h1 { font-size: 2.1rem; margin: 0 0 0.4rem; }
+  header.hero p.tagline { font-size: 1.15rem; color: var(--text-dim); margin: 0 0 1.8rem; }
+  .cta-links { margin-bottom: 2rem; }
+  .cta-links a.repo-link {
+    display: inline-block;
+    padding: 0.5rem 1.1rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    text-decoration: none;
+    color: var(--text);
+    font-weight: 600;
+  }
+  .cta-links a.repo-link:hover { border-color: var(--accent); }
+
+  .install-blocks {
+    display: grid;
+    gap: 1rem;
+    max-width: 680px;
+    margin: 0 auto;
+    text-align: left;
+  }
+  .install-block { position: relative; }
+  .install-block .label {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-bottom: 0.35rem;
+    font-weight: 600;
+  }
+  .code-row {
+    display: flex;
+    align-items: stretch;
+    background: var(--code-bg);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .code-row pre {
+    margin: 0;
+    padding: 0.8rem 1rem;
+    color: var(--code-text);
+    overflow-x: auto;
+    flex: 1;
+    font-size: 0.88rem;
+    white-space: pre;
+  }
+  .copy-btn {
+    background: transparent;
+    border: none;
+    border-left: 1px solid #333;
+    color: var(--code-text);
+    cursor: pointer;
+    padding: 0 1rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  .copy-btn:hover { background: rgba(255,255,255,0.08); }
+  .copy-btn.copied { color: var(--good); }
+
+  /* Flow diagram */
+  .flow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin: 1.5rem 0;
+  }
+  .flow .node {
+    border: 1px solid var(--border);
+    background: var(--bg-alt);
+    border-radius: 8px;
+    padding: 0.7rem 0.9rem;
+    font-size: 0.85rem;
+    text-align: center;
+    min-width: 9rem;
+  }
+  .flow .node strong { display: block; font-size: 0.9rem; }
+  .flow .node span { color: var(--text-dim); font-size: 0.78rem; }
+  .flow .arrow {
+    color: var(--text-dim);
+    font-size: 1.2rem;
+    flex: 0 0 auto;
+  }
+  @media (max-width: 700px) {
+    .flow { flex-direction: column; }
+    .flow .arrow { transform: rotate(90deg); }
+  }
+
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 0.6rem 0.7rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--text-dim); font-weight: 600; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.02em; }
+  td code { background: var(--bg-alt); padding: 0.1rem 0.35rem; border-radius: 4px; font-size: 0.88rem; }
+
+  ul.req-list { padding-left: 1.2rem; }
+  ul.req-list li { margin-bottom: 0.5rem; }
+
+  footer {
+    text-align: center;
+    padding: 2.5rem 1.5rem;
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    border-top: 1px solid var(--border);
+    margin-top: 2rem;
+  }
+  footer a { margin: 0 0.4rem; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <h1>claude-advisor</h1>
+  <p class="tagline">A Bedrock-native advisor for Claude Code</p>
+
+  <div class="install-blocks">
+    <div class="install-block">
+      <div class="label">macOS / Linux</div>
+      <div class="code-row">
+        <pre id="cmd-unix">curl -fsSL https://model-harness.github.io/claude-advisor/install.sh | bash</pre>
+        <button class="copy-btn" data-target="cmd-unix" aria-label="Copy macOS and Linux install command">Copy</button>
+      </div>
+    </div>
+    <div class="install-block">
+      <div class="label">Windows (PowerShell)</div>
+      <div class="code-row">
+        <pre id="cmd-win">irm https://model-harness.github.io/claude-advisor/install.ps1 | iex</pre>
+        <button class="copy-btn" data-target="cmd-win" aria-label="Copy Windows PowerShell install command">Copy</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="cta-links">
+    <a class="repo-link" href="https://github.com/model-harness/claude-advisor">View on GitHub</a>
+  </div>
+</header>
+
+<main>
+
+<section id="how-it-works">
+  <h2>How it works</h2>
+  <p>
+    Claude Code's built-in advisor lets the working model consult a stronger model at decision
+    points, but it runs as a server-side tool on Anthropic's API and isn't available when Claude
+    Code is configured for Amazon Bedrock. claude-advisor re-creates the same workflow locally,
+    outside the API.
+  </p>
+  <div class="flow">
+    <div class="node"><strong>Opus orchestrator</strong><span>spawns a subagent</span></div>
+    <div class="arrow" aria-hidden="true">&rarr;</div>
+    <div class="node"><strong>Sonnet / Haiku subagent</strong><span>runs the task</span></div>
+    <div class="arrow" aria-hidden="true">&rarr;</div>
+    <div class="node"><strong>advisor tool</strong><span>called at a decision point</span></div>
+    <div class="arrow" aria-hidden="true">&rarr;</div>
+    <div class="node"><strong>plugin hook</strong><span>finds the agent's transcript on disk</span></div>
+    <div class="arrow" aria-hidden="true">&rarr;</div>
+    <div class="node"><strong>advisor-engine</strong><span>local Go binary, filters transcript</span></div>
+    <div class="arrow" aria-hidden="true">&rarr;</div>
+    <div class="node"><strong>Bedrock (Opus)</strong><span>Converse API</span></div>
+    <div class="arrow" aria-hidden="true">&rarr;</div>
+    <div class="node"><strong>Guidance</strong><span>returned as the tool result</span></div>
+  </div>
+  <p>
+    The plugin (mod) is named <code>bedrock-advisor</code> and registers the <code>advisor</code>
+    tool. It can also consult automatically, without the subagent asking: if the same tool error
+    repeats twice in a row, the plugin calls the advisor and attaches the guidance to the tool
+    result.
+  </p>
+</section>
+
+<section id="requirements">
+  <h2>Requirements</h2>
+  <ul class="req-list">
+    <li>Claude Code v2.1.293 or later.</li>
+    <li>Claude Code configured for Bedrock (<code>CLAUDE_CODE_USE_BEDROCK=1</code>).</li>
+    <li>For the direct path: AWS credentials the AWS SDK default chain can find (profile, SSO, or environment variables), <code>AWS_REGION</code>, and Bedrock access to the advisor model. Without them, the default <code>auto</code> backend sends the advisor request through Claude Code's own model call instead.</li>
+  </ul>
+</section>
+
+<section id="configuration">
+  <h2>Configuration</h2>
+  <p>
+    Set with <code>/config</code>, or from your shell with <code>echo '{"advisor_model":"sonnet"}' | claude plugin configure bedrock-advisor@model-harness --values-stdin</code>.
+  </p>
+  <table>
+    <thead>
+      <tr><th>Option</th><th>Default</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>advisor_model</code></td>
+        <td><code>opus</code></td>
+        <td>Alias (<code>opus</code>, <code>sonnet</code>, <code>haiku</code>) resolved through <code>ANTHROPIC_DEFAULT_OPUS_MODEL</code> and the equivalent Sonnet/Haiku variables, or a full Bedrock model / inference-profile ID.</td>
+      </tr>
+      <tr>
+        <td><code>backend</code></td>
+        <td><code>auto</code></td>
+        <td><code>auto</code>: the engine calls Bedrock directly and falls back to Claude Code's own model call on credential or access-denied errors. <code>bedrock</code>: engine only. <code>session</code>: Claude Code's model call only.</td>
+      </tr>
+      <tr>
+        <td><code>auto_consult</code></td>
+        <td><code>true</code></td>
+        <td>Consult the advisor automatically when the same tool error happens twice in a row.</td>
+      </tr>
+      <tr>
+        <td><code>max_tokens</code></td>
+        <td><code>2048</code></td>
+        <td>Cap on the advisor's reply length.</td>
+      </tr>
+      <tr>
+        <td><code>max_context_chars</code></td>
+        <td><code>400000</code></td>
+        <td>Transcript budget sent to the advisor.</td>
+      </tr>
+      <tr>
+        <td><code>engine_path</code></td>
+        <td>&mdash;</td>
+        <td>Path to the <code>advisor-engine</code> binary. Set by the installer.</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="comparison">
+  <h2>Compared with the built-in advisor</h2>
+  <table>
+    <thead>
+      <tr><th></th><th>Built-in advisor</th><th>claude-advisor</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Execution</td>
+        <td>Runs inside one API request, server-side</td>
+        <td>Runs as a normal tool call — one extra round trip</td>
+      </tr>
+      <tr>
+        <td>Platform</td>
+        <td>Anthropic API only</td>
+        <td>Works on Bedrock</td>
+      </tr>
+      <tr>
+        <td>Context source</td>
+        <td>Shares the request's context server-side</td>
+        <td>Reads the agent's transcript from disk</td>
+      </tr>
+      <tr>
+        <td>Repeated errors</td>
+        <td>No setting to force a call</td>
+        <td>Can force a consultation when the same tool error repeats</td>
+      </tr>
+      <tr>
+        <td>Advisor prompt</td>
+        <td>Anthropic's, not published</td>
+        <td>Open source, in the engine</td>
+      </tr>
+      <tr>
+        <td>Billing</td>
+        <td>Advisor model rates on the Anthropic API</td>
+        <td>Advisor tokens billed by Bedrock at the advisor model's rates</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+</main>
+
+<footer>
+  <p>
+    MIT license &middot;
+    <a href="https://github.com/model-harness/claude-advisor">github.com/model-harness/claude-advisor</a>
+  </p>
+  <p>Not affiliated with Anthropic.</p>
+</footer>
+
+<script>
+  (function () {
+    var buttons = document.querySelectorAll('.copy-btn');
+    buttons.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var target = document.getElementById(btn.getAttribute('data-target'));
+        if (!target) return;
+        var text = target.textContent;
+        var done = function () {
+          var original = btn.textContent;
+          btn.textContent = 'Copied';
+          btn.classList.add('copied');
+          setTimeout(function () {
+            btn.textContent = original === 'Copied' ? 'Copy' : original;
+            btn.classList.remove('copied');
+          }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done, function () {
+            fallbackCopy(text);
+            done();
+          });
+        } else {
+          fallbackCopy(text);
+          done();
+        }
+      });
+    });
+
+    function fallbackCopy(text) {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(ta);
+    }
+  })();
+</script>
+
+</body>
+</html>

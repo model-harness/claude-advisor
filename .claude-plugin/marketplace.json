@@ -1,0 +1,11 @@
+{
+  "name": "model-harness",
+  "owner": { "name": "Ergon Copeland", "url": "https://github.com/3rg0n" },
+  "plugins": [
+    {
+      "name": "bedrock-advisor",
+      "source": "./plugin",
+      "description": "An advisor tool for Claude Code on Amazon Bedrock"
+    }
+  ]
+}

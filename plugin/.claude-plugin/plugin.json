@@ -1,0 +1,54 @@
+{
+  "name": "bedrock-advisor",
+  "displayName": "Bedrock Advisor",
+  "version": "0.1.0",
+  "description": "An advisor tool for Claude Code on Amazon Bedrock: a stronger model reviews the calling agent's own transcript and returns guidance.",
+  "author": { "name": "Ergon Copeland", "url": "https://github.com/3rg0n" },
+  "homepage": "https://model-harness.github.io/claude-advisor/",
+  "repository": "https://github.com/model-harness/claude-advisor",
+  "license": "MIT",
+  "keywords": ["advisor", "bedrock", "aws", "subagents", "mod"],
+  "userConfig": {
+    "advisor_model": {
+      "type": "string",
+      "title": "Advisor model",
+      "description": "Alias (opus, sonnet, haiku) resolved through ANTHROPIC_DEFAULT_<ALIAS>_MODEL, or a full Bedrock model or inference profile id",
+      "default": "opus"
+    },
+    "backend": {
+      "type": "string",
+      "title": "Backend",
+      "description": "auto: the engine calls Bedrock and falls back to Claude Code's own model call on credential or access errors. bedrock: engine only. session: Claude Code's model call only",
+      "options": ["auto", "bedrock", "session"],
+      "default": "auto"
+    },
+    "auto_consult": {
+      "type": "boolean",
+      "title": "Consult on repeated errors",
+      "description": "Consult the advisor automatically when the same tool error happens twice in a row, and attach the advice to the tool result",
+      "default": true
+    },
+    "max_tokens": {
+      "type": "number",
+      "title": "Advisor reply cap",
+      "description": "Maximum tokens in one advisor reply",
+      "default": 2048,
+      "min": 256,
+      "max": 64000
+    },
+    "max_context_chars": {
+      "type": "number",
+      "title": "Transcript budget",
+      "description": "Maximum characters of the agent's transcript sent to the advisor",
+      "default": 400000,
+      "min": 20000,
+      "max": 2000000
+    },
+    "engine_path": {
+      "type": "string",
+      "title": "Engine path",
+      "description": "Absolute path to advisor-engine. Set by the installer; leave empty to use the default location",
+      "default": ""
+    }
+  }
+}
