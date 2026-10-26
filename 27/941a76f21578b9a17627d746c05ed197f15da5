@@ -1,0 +1,19 @@
+CHANGELOG.md
+  s_88da00414f0ee6::t_c7be757642b0d7 10-11,17-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "2.0.0",
+  "base_commit_sha": "27941a76f21578b9a17627d746c05ed197f15da5",
+  "prompts": {},
+  "sessions": {
+    "s_88da00414f0ee6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "831c4f8c-72d2-43dd-a2f0-64ea2913e0bb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Ergon Copeland <196864108+3rg0n@users.noreply.github.com>"
+    }
+  }
+}
