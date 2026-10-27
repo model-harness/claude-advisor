@@ -24,7 +24,7 @@ public issue.
 
 Release binaries are built by GitHub Actions from the tagged commit, with build provenance attestations
 (`gh attestation verify <file> --repo model-harness/claude-advisor`). The installers verify each download against
-the release's `checksums.txt` and pin the plugin to the same release. `install.sh` requires TLS 1.3.
+the release's `checksums.txt` and pin the plugin to the same release. `install.sh` requires TLS 1.3 where curl can enforce it, and TLS 1.2 or later with a warning where it cannot, as with macOS's system curl.
 `install.ps1` uses the operating system's TLS settings on PowerShell 7 and turns on TLS 1.2 and, where
 available, 1.3 on Windows PowerShell 5.1, because Windows 10 has no TLS 1.3 client. Workflow actions are pinned to
 commit SHAs.

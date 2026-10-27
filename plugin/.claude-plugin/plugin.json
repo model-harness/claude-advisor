@@ -1,7 +1,7 @@
 {
   "name": "bedrock-advisor",
   "displayName": "Bedrock Advisor",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "An advisor tool for Claude Code on Amazon Bedrock: a stronger model reviews the calling agent's own transcript and returns guidance.",
   "author": { "name": "Ergon Copeland", "url": "https://github.com/3rg0n" },
   "homepage": "https://model-harness.github.io/claude-advisor/",

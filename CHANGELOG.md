@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-27
+
+### Fixed
+- `install.sh` works with macOS's system curl, which cannot require TLS 1.3; it now falls back to requiring TLS 1.2 or later there, with a warning.
+
 ## [0.1.1] - 2026-10-27
 
 ### Fixed
@@ -23,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `advisor-engine`, a Go binary that filters Claude Code transcripts and calls the Bedrock Converse API, with an `auto` backend that falls back to Claude Code's own model call on credential or access errors.
 - `install.sh` and `install.ps1`, which install a checksum-verified engine release and the plugin from the `model-harness` marketplace.
 
-[Unreleased]: https://github.com/model-harness/claude-advisor/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/model-harness/claude-advisor/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/model-harness/claude-advisor/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/model-harness/claude-advisor/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/model-harness/claude-advisor/releases/tag/v0.1.0

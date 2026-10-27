@@ -43,7 +43,24 @@ version_ge() {
   }'
 }
 
-fetch() { curl -fsSL --proto '=https' --tlsv1.3 -o "$1" "$2"; }
+# TLS 1.3 is required where curl can enforce it. macOS's system curl cannot
+# set a TLS minimum ("curl: (4)"), so there it falls back to 1.2 or later,
+# once, with a warning; downloads are still checked against checksums.txt.
+TLS_FLAG="--tlsv1.3"
+
+# probe_tls picks the TLS flag once, before any download.
+probe_tls() {
+  local rc=0
+  curl -fsS --proto '=https' --tlsv1.3 -I -o /dev/null "https://github.com" 2>/dev/null || rc=$?
+  if [ "$rc" = 4 ]; then
+    warn "this curl cannot require TLS 1.3; requiring TLS 1.2 or later instead"
+    TLS_FLAG="--tlsv1.2"
+  fi
+}
+
+curl_https() { curl -fsSL --proto '=https' "$TLS_FLAG" "$@"; }
+
+fetch() { curl_https -o "$1" "$2"; }
 
 sha256() {
   if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | awk '{print $1}'
@@ -68,7 +85,7 @@ saved_config() {
 
 resolve_latest() {
   local url tag
-  url=$(curl -fsSLI --proto '=https' --tlsv1.3 -o /dev/null -w '%{url_effective}' "https://github.com/$REPO/releases/latest") ||
+  url=$(curl_https -I -o /dev/null -w '%{url_effective}' "https://github.com/$REPO/releases/latest") ||
     die "could not reach https://github.com/$REPO/releases/latest"
   tag=${url##*/}
   case "$tag" in
@@ -133,6 +150,7 @@ main() {
     (cd "$from_source/engine" && CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=source" -o "$WORK/advisor-engine" ./cmd/advisor-engine)
     source="$from_source"
   else
+    probe_tls
     [ "$version" = latest ] && version=$(resolve_latest)
     local asset="advisor-engine_${os}_${arch}" base="https://github.com/$REPO/releases/download/$version"
     say "Downloading $asset ($version)"

@@ -90,6 +90,17 @@ jobs:
         with:
           node-version: 24
       - run: npm install -g "@anthropic-ai/claude-code@${{ matrix.claude || env.CLAUDE_CODE_VERSION }}"
+      - name: install.sh, latest published release
+        if: runner.os != 'Windows'
+        run: |
+          bash install.sh
+          claude plugin list --json | grep -q '"id": *"bedrock-advisor@model-harness"'
+      - name: install.ps1, latest published release
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          ./install.ps1
+          if (-not ((claude plugin list --json | ConvertFrom-Json) | Where-Object id -eq 'bedrock-advisor@model-harness')) { exit 1 }
       - name: install.sh
         if: runner.os != 'Windows'
         # Twice: the second run takes the reinstall path.
