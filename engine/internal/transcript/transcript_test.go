@@ -2,6 +2,7 @@ package transcript
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -147,14 +148,21 @@ func TestRenderNeverExceedsBudget(t *testing.T) {
 }
 
 func TestClip(t *testing.T) {
-	s := strings.Repeat("a", 50) + strings.Repeat("b", 50)
-	// The 25-character marker leaves 35 of 60: 17 from the head, 18 from the tail.
-	got := clip(s, 60)
-	if !strings.HasPrefix(got, strings.Repeat("a", 17)+"\n") || !strings.HasSuffix(got, "\n"+strings.Repeat("b", 18)) || !strings.Contains(got, "65 chars truncated") {
+	s := strings.Repeat("a", 150) + strings.Repeat("b", 150)
+	got := clip(s, 200)
+	keep := 200 - utf8.RuneCountInString(clipMarker(len(s)))
+	head, tail := keep/2, keep-keep/2
+	if !strings.HasPrefix(got, strings.Repeat("a", head)+"\n") || !strings.HasSuffix(got, "\n"+strings.Repeat("b", tail)) {
 		t.Errorf("clip = %q", got)
 	}
-	if n := utf8.RuneCountInString(got); n > 60 {
-		t.Errorf("clip output is %d characters, want at most 60", n)
+	if n := utf8.RuneCountInString(got); n > 200 {
+		t.Errorf("clip output is %d characters, want at most 200", n)
+	}
+	// The marker must say the advisor's copy was shortened, not the agent's:
+	// an advisor told only "truncated" concluded the agent's Read had failed.
+	want := fmt.Sprintf("%d characters left out of the advisor's copy; the agent saw the full text", 300-keep)
+	if !strings.Contains(got, want) {
+		t.Errorf("marker lacks %q: %q", want, got)
 	}
 	if got := clip(s, 10); got != strings.Repeat("a", 10) {
 		t.Errorf("clip below marker size = %q, want a hard cut", got)

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-27
+
+### Fixed
+- The advisor no longer mistakes its own shortened copy of a long tool result for output the agent never saw.
+
+### Added
+- Each release run now installs the new release with the one-line installers on Linux, macOS and Windows, and fails if any install fails.
+
 ## [0.1.0] - 2026-10-26
 
 ### Added
@@ -15,5 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `advisor-engine`, a Go binary that filters Claude Code transcripts and calls the Bedrock Converse API, with an `auto` backend that falls back to Claude Code's own model call on credential or access errors.
 - `install.sh` and `install.ps1`, which install a checksum-verified engine release and the plugin from the `model-harness` marketplace.
 
-[Unreleased]: https://github.com/model-harness/claude-advisor/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/model-harness/claude-advisor/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/model-harness/claude-advisor/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/model-harness/claude-advisor/releases/tag/v0.1.0

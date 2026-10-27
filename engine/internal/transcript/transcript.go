@@ -296,7 +296,11 @@ func compact(raw json.RawMessage) string {
 
 func runes(s string) int { return utf8.RuneCountInString(s) }
 
-func clipMarker(removed int) string { return fmt.Sprintf("\n…[%d chars truncated]…\n", removed) }
+// clipMarker says the advisor's copy was shortened, so the advisor doesn't
+// mistake it for output the agent itself never saw.
+func clipMarker(removed int) string {
+	return fmt.Sprintf("\n…[%d characters left out of the advisor's copy; the agent saw the full text]…\n", removed)
+}
 
 // clip keeps the head and tail of s within n characters, marker included.
 func clip(s string, n int) string {

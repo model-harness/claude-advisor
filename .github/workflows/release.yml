@@ -57,3 +57,36 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --verify-tag --title "$GITHUB_REF_NAME" --generate-notes
+
+  # Install the release the way a user does, from the published one-liners.
+  smoke:
+    needs: release
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - run: npm install -g "@anthropic-ai/claude-code@2.1.310"
+      - name: install.sh
+        if: runner.os != 'Windows'
+        env:
+          CLAUDE_ADVISOR_VERSION: ${{ github.ref_name }}
+        run: |
+          curl -fsSL "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/install.sh" | bash
+          "$HOME/.claude/plugins/data/bedrock-advisor-model-harness/bin/advisor-engine" version | grep -q "\"${GITHUB_REF_NAME}\""
+          claude plugin list --json | grep -q '"id": *"bedrock-advisor@model-harness"'
+      - name: install.ps1
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          CLAUDE_ADVISOR_VERSION: ${{ github.ref_name }}
+        run: |
+          irm "https://raw.githubusercontent.com/$env:GITHUB_REPOSITORY/$env:GITHUB_REF_NAME/install.ps1" | iex
+          $v = & "$HOME/.claude/plugins/data/bedrock-advisor-model-harness/bin/advisor-engine.exe" version | ConvertFrom-Json
+          if ($v.version -ne $env:GITHUB_REF_NAME) { throw "engine is $($v.version)" }
+          if (-not ((claude plugin list --json | ConvertFrom-Json) | Where-Object id -eq 'bedrock-advisor@model-harness')) { throw 'plugin not installed' }
