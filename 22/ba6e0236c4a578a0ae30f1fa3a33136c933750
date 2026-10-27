@@ -1,0 +1,30 @@
+install.sh
+  s_07a63140220e29::t_eefb43eb452d00 51-52,54-55,60-61
+  s_07a63140220e29::t_aa2205849d083f 46-50,53,56-59,62-63
+  s_07a63140220e29::t_6682f6739386d9 88
+  s_07a63140220e29::t_9a3ef0eb2116e9 153
+.github/workflows/ci.yml
+  s_07a63140220e29::t_5403a13bd5f6bd 93-103
+CHANGELOG.md
+  s_07a63140220e29::t_07f9efc28593ad 10-14,31-32
+SECURITY.md
+  s_07a63140220e29::t_23230822ff7d23 27
+plugin/.claude-plugin/plugin.json
+  s_07a63140220e29::t_88435dc7f5ab1b 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "2.0.0",
+  "base_commit_sha": "22ba6e0236c4a578a0ae30f1fa3a33136c933750",
+  "prompts": {},
+  "sessions": {
+    "s_07a63140220e29": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "221c5fc4-c1e0-4073-84f4-0acaa5d8cdd2",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Ergon Copeland <196864108+3rg0n@users.noreply.github.com>"
+    }
+  }
+}
