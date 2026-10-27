@@ -68,6 +68,41 @@ sha256() {
   fi
 }
 
+# verify_attestation FILE TAG checks the binary's build provenance when the
+# GitHub CLI can: that it was built by this repository's release workflow for
+# exactly TAG, on a GitHub-hosted runner. A checksum from the same release
+# can't prove that. Without a usable gh the check is skipped, with a warning.
+verify_attestation() {
+  local file="$1" tag="$2" help out
+  if [ "${CLAUDE_ADVISOR_SKIP_ATTESTATION:-}" = 1 ]; then
+    warn "build provenance not checked (CLAUDE_ADVISOR_SKIP_ATTESTATION=1)"
+    return
+  fi
+  if ! command -v gh >/dev/null 2>&1; then
+    warn "build provenance not checked: install the GitHub CLI (gh) to verify it"
+    return
+  fi
+  help=$(gh attestation verify --help </dev/null 2>&1) || help=""
+  # Each flag on its own: gh lists them alphabetically, not in this order.
+  case "$help" in *--source-ref*) ;; *) help="" ;; esac
+  case "$help" in *--signer-workflow*) ;; *) help="" ;; esac
+  if [ -z "$help" ]; then
+    warn "build provenance not checked: this gh is too old for 'gh attestation verify --source-ref' (update gh)"
+    return
+  fi
+  if ! gh auth status --active --hostname github.com </dev/null >/dev/null 2>&1; then
+    warn "build provenance not checked: gh is not signed in to github.com"
+    return
+  fi
+  if ! out=$(gh attestation verify "$file" --hostname github.com --repo "$REPO" \
+    --source-ref "refs/tags/$tag" --signer-workflow "$REPO/.github/workflows/release.yml" \
+    --deny-self-hosted-runners </dev/null 2>&1); then
+    printf '%s\n' "$out" >&2
+    die "build provenance check failed for $(basename "$file") ($tag); not installing it"
+  fi
+  say "Build provenance verified"
+}
+
 marketplace_added() { claude plugin marketplace list --json </dev/null 2>/dev/null | grep -q "\"name\": *\"$MARKETPLACE\""; }
 plugin_installed() { claude plugin list --json </dev/null 2>/dev/null | grep -q "\"id\": *\"$PLUGIN_ID\""; }
 
@@ -162,6 +197,7 @@ main() {
     actual=$(sha256 "$WORK/$asset")
     [ "$expected" = "$actual" ] || die "checksum mismatch for $asset (expected $expected, got $actual)"
     say "Checksum verified"
+    verify_attestation "$WORK/$asset" "$version"
     mv "$WORK/$asset" "$WORK/advisor-engine"
     # Pin the plugin to the same release as the engine.
     source="$REPO#$version"
@@ -181,19 +217,24 @@ main() {
   mv -f "$WORK/advisor-engine" "$engine"
   say "Engine installed: $engine ($("$engine" version))"
 
+  # The saved options go on the install command line, so no step needs stdin.
+  local -a config=(--config "engine_path=$engine")
+  if [ "$saved" != '{}' ]; then
+    while IFS= read -r kv; do
+      [ -n "$kv" ] && config+=(--config "$kv")
+    done < <(printf '%s' "$saved" | jq -r 'to_entries[] | "\(.key)=\(.value)"')
+  fi
+
   say "Adding marketplace $source"
   if ! claude plugin marketplace add "$source" </dev/null ||
-    ! { say "Installing $PLUGIN_ID"; claude plugin install "$PLUGIN_ID" --config "engine_path=$engine" </dev/null; }; then
+    ! { say "Installing $PLUGIN_ID"; claude plugin install "$PLUGIN_ID" "${config[@]}" </dev/null; }; then
     if [ "$saved" != '{}' ]; then
       warn "your previous settings were: $saved"
       warn "after a successful re-run, restore them with: echo '$saved' | claude plugin configure $PLUGIN_ID --values-stdin"
     fi
     die "the plugin install failed; fix the error above and re-run the installer"
   fi
-  if [ "$saved" != '{}' ]; then
-    say "Restoring your settings"
-    printf '%s' "$saved" | claude plugin configure "$PLUGIN_ID" --values-stdin
-  fi
+  [ "$saved" != '{}' ] && say "Kept your settings"
 
   say "Checking AWS credentials"
   if ! "$engine" doctor; then

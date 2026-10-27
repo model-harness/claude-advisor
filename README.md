@@ -39,12 +39,20 @@ release tag, installs `bedrock-advisor@model-harness`, and checks your AWS crede
 session afterwards and run `/bedrock-advisor` to see the setup. Re-run the installer to upgrade; it reinstalls
 cleanly and keeps the options you set (on macOS and Linux this needs `jq`).
 
-Each release binary also carries a GitHub build provenance attestation:
-`gh attestation verify advisor-engine_linux_amd64 --repo model-harness/claude-advisor`.
+Each release binary also carries a GitHub build provenance attestation. When a GitHub CLI (`gh`) new enough
+to pin the tag is installed and signed in to github.com, the installer checks that the binary was built by this
+repository's release workflow for the tag you install, and refuses one that fails; otherwise it warns that it
+skipped the check. To check by hand:
+
+```sh
+gh attestation verify advisor-engine_linux_amd64 --repo model-harness/claude-advisor \
+  --source-ref refs/tags/v0.1.3 --signer-workflow model-harness/claude-advisor/.github/workflows/release.yml
+```
 
 Options: `--version v0.1.0` / `-Version v0.1.0` (or `CLAUDE_ADVISOR_VERSION`) pins a release;
 `--from-source <checkout>` / `-FromSource <checkout>` builds the engine with Go instead of downloading it;
-`--uninstall` / `-Uninstall` removes everything.
+`--uninstall` / `-Uninstall` removes everything; `CLAUDE_ADVISOR_SKIP_ATTESTATION=1` skips the build provenance check
+(with a warning).
 
 ### Requirements
 

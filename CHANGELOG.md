@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-10-27
+
+### Security
+- The installers now check each release binary's build provenance with `gh attestation verify`, pinned to the requested tag and this repository's release workflow, when a GitHub CLI new enough to support it is signed in to github.com, and refuse a binary that fails.
+
+### Fixed
+- Re-running `install.ps1` under Windows PowerShell 5.1 now keeps your plugin settings; it passes them to `claude plugin install` instead of piping them to `claude plugin configure`, which 5.1 broke.
+- When the advisor finds no saved conversation, as in a brand-new session, it now says so and names the directory it searched.
+
 ## [0.1.2] - 2026-10-27
 
 ### Fixed
@@ -28,7 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `advisor-engine`, a Go binary that filters Claude Code transcripts and calls the Bedrock Converse API, with an `auto` backend that falls back to Claude Code's own model call on credential or access errors.
 - `install.sh` and `install.ps1`, which install a checksum-verified engine release and the plugin from the `model-harness` marketplace.
 
-[Unreleased]: https://github.com/model-harness/claude-advisor/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/model-harness/claude-advisor/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/model-harness/claude-advisor/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/model-harness/claude-advisor/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/model-harness/claude-advisor/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/model-harness/claude-advisor/releases/tag/v0.1.0

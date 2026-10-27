@@ -49,7 +49,11 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-      - run: npm install -g "@anthropic-ai/claude-code@${{ matrix.claude || env.CLAUDE_CODE_VERSION }}"
+      - name: Install Claude Code
+        shell: bash
+        env:
+          CLAUDE_VERSION: ${{ matrix.claude || env.CLAUDE_CODE_VERSION }}
+        run: npm install -g "@anthropic-ai/claude-code@${CLAUDE_VERSION}"
       - run: claude plugin validate --strict ./plugin
       - run: claude plugin validate .
       - run: claude plugin test
@@ -89,17 +93,29 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-      - run: npm install -g "@anthropic-ai/claude-code@${{ matrix.claude || env.CLAUDE_CODE_VERSION }}"
+      - name: Install Claude Code
+        shell: bash
+        env:
+          CLAUDE_VERSION: ${{ matrix.claude || env.CLAUDE_CODE_VERSION }}
+        run: npm install -g "@anthropic-ai/claude-code@${CLAUDE_VERSION}"
       - name: install.sh, latest published release
         if: runner.os != 'Windows'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          bash install.sh
+          set -o pipefail
+          bash install.sh 2>&1 | tee install.log
+          grep -q "Build provenance verified" install.log
           claude plugin list --json | grep -q '"id": *"bedrock-advisor@model-harness"'
       - name: install.ps1, latest published release
         if: runner.os == 'Windows'
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          ./install.ps1
+          ./install.ps1 *>&1 | Tee-Object -Variable lines
+          $log = $lines | Out-String
+          if ($log -notmatch 'Build provenance verified') { throw 'provenance was not verified' }
           if (-not ((claude plugin list --json | ConvertFrom-Json) | Where-Object id -eq 'bedrock-advisor@model-harness')) { exit 1 }
       - name: install.sh
         if: runner.os != 'Windows'

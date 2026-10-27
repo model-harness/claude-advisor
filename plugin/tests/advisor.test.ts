@@ -12,7 +12,7 @@ type Engine = (argv: readonly string[], request: any) => any
 
 // Stubs a Windows machine with one project holding the session and one
 // subagent transcript, and an engine answered by `engine`.
-function machine(on: any, engine: Engine, calls: any[] = [], opts: { engineInstalled?: boolean; lists?: number[] } = {}) {
+function machine(on: any, engine: Engine, calls: any[] = [], opts: { engineInstalled?: boolean; lists?: number[]; mainTranscript?: boolean } = {}) {
   const installed = opts.engineInstalled !== false
   mock.env(on, {
     OS: 'Windows_NT',
@@ -27,7 +27,8 @@ function machine(on: any, engine: Engine, calls: any[] = [], opts: { engineInsta
   // e.path arrives absolute in the host's own form, so compare normalized.
   on('fs.exists', ($: any, e: any) => {
     const path = String(e.path).split('\\').join('/')
-    const known = [PROJECT + '/' + SESSION + '/subagents/agent-' + AGENT + '.jsonl', PROJECT + '/' + SESSION + '/subagents/agent-other.jsonl', PROJECT + '/' + SESSION + '.jsonl']
+    const known = [PROJECT + '/' + SESSION + '/subagents/agent-' + AGENT + '.jsonl', PROJECT + '/' + SESSION + '/subagents/agent-other.jsonl']
+    if (opts.mainTranscript !== false) known.push(PROJECT + '/' + SESSION + '.jsonl')
     if (installed) known.push(ENGINE)
     return { value: known.some(p => path.endsWith(p.slice(2))) }
   })
@@ -85,14 +86,14 @@ test('a non-fallback engine error is reported to the agent', async ($, on) => {
 test('a missing transcript is reported, not thrown', async ($, on) => {
   machine(on, () => ({ protocol: 1, ok: true, text: 'unused' }))
   const out = await $.tool.call({ tool: TOOL, agentId: 'nobody' })
-  expect(out.result).toMatch(/transcript not found for agent nobody/)
+  expect(out.result).toContain('no saved conversation for agent nobody')
 })
 
 test('an unsafe agent id never reaches the file system', async ($, on) => {
   const lists: number[] = []
   machine(on, () => ({ protocol: 1, ok: true, text: 'unused' }), [], { lists })
   const out = await $.tool.call({ tool: TOOL, agentId: '../../etc' })
-  expect(out.result).toMatch(/transcript not found/)
+  expect(out.result).toContain('no saved conversation for agent ../../etc')
   expect(lists.length).toBe(0)
 })
 
@@ -192,4 +193,20 @@ test('/bedrock-advisor ask reports the path the advice took', async ($, on) => {
   on('model.complete', () => ({ value: { isAnswered: true, text: 'advice', usage: USAGE } }))
   const out = await $.command.run({ command: 'bedrock-advisor', args: 'ask is this ok' })
   expect(out.text).toContain('Advisor (opus via session (fallback: access_denied)):\nadvice')
+})
+
+test('/bedrock-advisor ask in a session with no saved conversation says so', async ($, on) => {
+  const calls: any[] = []
+  machine(on, () => ({ protocol: 1, ok: true, text: 'unused' }), calls, { mainTranscript: false })
+  const out = await $.command.run({ command: 'bedrock-advisor', args: 'ask anything' })
+  expect(out.text).toContain('no saved conversation for this session under ' + ROOT)
+  expect(calls.length).toBe(0)
+})
+
+test('the main agent advisor call with no saved conversation says where it looked', async ($, on) => {
+  const calls: any[] = []
+  machine(on, () => ({ protocol: 1, ok: true, text: 'unused' }), calls, { mainTranscript: false })
+  const out = await $.tool.call({ tool: TOOL, question: 'ok?' })
+  expect(out.result).toContain('no saved conversation for this session under ' + ROOT)
+  expect(calls.length).toBe(0)
 })

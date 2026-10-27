@@ -155,7 +155,11 @@ async function consult($, cfg, agentId, ask) {
   const sessionId = await $.session.id()
   const transcriptPath = await findTranscript($, where.projectsRoot, sessionId, agentId)
   if (!transcriptPath) {
-    return { ok: false, message: 'transcript not found for ' + (agentId ? 'agent ' + agentId : 'the main session') }
+    // A session with no turns has no transcript yet; other causes, such as a
+    // different CLAUDE_CONFIG_DIR or a linked project directory, persist, so
+    // the message names where it looked.
+    const who = agentId ? 'agent ' + agentId : 'this session'
+    return { ok: false, message: 'no saved conversation for ' + who + ' under ' + where.projectsRoot + ' (a brand-new session has none yet)' }
   }
   const base = {
     protocol: PROTOCOL,

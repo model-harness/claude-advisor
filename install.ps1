@@ -60,6 +60,29 @@ param(
         try { return ($out | Out-String | ConvertFrom-Json) } catch { return $null }
     }
 
+    # Checks the binary's build provenance when the GitHub CLI can: that it was
+    # built by this repository's release workflow for exactly $Tag, on a
+    # GitHub-hosted runner. A checksum from the same release can't prove that.
+    # Without a usable gh the check is skipped, with a warning.
+    function Test-Attestation([string]$Path, [string]$Tag) {
+        if ($env:CLAUDE_ADVISOR_SKIP_ATTESTATION -eq '1') { Write-Warning 'Build provenance not checked (CLAUDE_ADVISOR_SKIP_ATTESTATION=1)'; return }
+        if (-not (Get-Command gh -ErrorAction SilentlyContinue)) { Write-Warning 'Build provenance not checked: install the GitHub CLI (gh) to verify it'; return }
+        $ErrorActionPreference = 'Continue'
+        $help = (& gh attestation verify --help 2>&1 | Out-String)
+        if ($LASTEXITCODE -ne 0 -or $help -notmatch '--source-ref' -or $help -notmatch '--signer-workflow') {
+            Write-Warning "Build provenance not checked: this gh is too old for 'gh attestation verify --source-ref' (update gh)"; return
+        }
+        & gh auth status --active --hostname github.com *> $null
+        if ($LASTEXITCODE -ne 0) { Write-Warning 'Build provenance not checked: gh is not signed in to github.com'; return }
+        # Each line as a string, so Windows PowerShell 5.1 doesn't wrap gh's stderr in error records.
+        $out = (& gh attestation verify $Path --hostname github.com --repo $Repo --source-ref "refs/tags/$Tag" --signer-workflow "$Repo/.github/workflows/release.yml" --deny-self-hosted-runners 2>&1 | ForEach-Object { "$_" } | Out-String)
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host $out.Trim()
+            Die "build provenance check failed for $(Split-Path -Leaf $Path) ($Tag); not installing it"
+        }
+        Say 'Build provenance verified'
+    }
+
     function Test-Marketplace { [bool]((Get-ClaudeJson plugin marketplace list --json) | Where-Object { $_.name -eq $Marketplace }) }
     function Test-Plugin { [bool]((Get-ClaudeJson plugin list --json) | Where-Object { $_.id -eq $PluginId }) }
 
@@ -160,6 +183,7 @@ param(
             $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $work $asset)).Hash.ToLowerInvariant()
             if ($expected -ne $actual) { Die "checksum mismatch for $asset (expected $expected, got $actual)" }
             Say 'Checksum verified'
+            Test-Attestation (Join-Path $work $asset) $Version
             Move-Item -LiteralPath (Join-Path $work $asset) -Destination $built
             # Pin the plugin to the same release as the engine.
             $source = "$Repo#$Version"
@@ -182,24 +206,22 @@ param(
         [Net.ServicePointManager]::SecurityProtocol = $savedProtocol
     }
 
+    # The saved options go on the install command line: Windows PowerShell 5.1
+    # mangles JSON piped to a native command's stdin.
+    $installArgs = @('plugin', 'install', $PluginId, '--config', "engine_path=$($engine -replace '\\', '/')")
+    foreach ($key in $saved.Keys) { $installArgs += @('--config', "$key=$($saved[$key])") }
     try {
         Say "Adding marketplace $source"
         Invoke-Claude plugin marketplace add $source
         Say "Installing $PluginId"
-        Invoke-Claude plugin install $PluginId --config "engine_path=$($engine -replace '\\', '/')"
+        Invoke-Claude @installArgs
     } catch {
         if ($saved.Count -gt 0) {
-            $json = $saved | ConvertTo-Json -Compress
-            Write-Warning "Your previous settings were: $json"
-            Write-Warning "After a successful re-run, restore them with: '$json' | claude plugin configure $PluginId --values-stdin"
+            Write-Warning "Your previous settings were: $(($saved.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join ', '); set them again with /config"
         }
         Die "the plugin install failed ($($_.Exception.Message)); fix the error and re-run the installer"
     }
-    if ($saved.Count -gt 0) {
-        Say 'Restoring your settings'
-        ($saved | ConvertTo-Json -Compress) | & claude plugin configure $PluginId --values-stdin
-        if ($LASTEXITCODE -ne 0) { Die 'claude plugin configure failed' }
-    }
+    if ($saved.Count -gt 0) { Say 'Kept your settings' }
 
     Say 'Checking AWS credentials'
     & $engine doctor
